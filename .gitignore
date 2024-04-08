@@ -1,0 +1,22 @@
+# Data
+data/
+
+# Results
+out/
+
+# YOLO
+*yolo*
+runs/
+
+# Python
+*.pyc
+__pycache__/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# Environment
+.env
+
+# VSCode
+.vscode
