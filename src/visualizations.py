@@ -5,6 +5,7 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 
 def yolo2bbox(bboxes: list[int]) -> tuple[int]:
@@ -91,4 +92,27 @@ def plot_images(
         plt.imshow(image[:, :, ::-1])
         plt.axis("off")
     plt.tight_layout()
+    plt.show()
+
+
+def plot_class_frequencies(df: pd.DataFrame) -> None:
+    classes_df = (
+        df[["class_name", "annotations"]]
+        .groupby("class_name")
+        .count()
+        .reset_index()
+        .sort_values(by="annotations", ascending=False)
+    )
+
+    plt.figure(figsize=(8, 6))
+    bars = plt.bar(classes_df["class_name"], classes_df["annotations"], color="purple")
+    plt.title("Frequency of Each Class")
+    plt.ylabel("Frequency")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2.5, yval, int(yval), va="bottom")
+
     plt.show()
