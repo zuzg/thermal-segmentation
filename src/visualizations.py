@@ -104,7 +104,7 @@ def plot_class_frequencies(df: pd.DataFrame) -> None:
         .sort_values(by="annotations", ascending=False)
     )
 
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(6, 4))
     bars = plt.bar(classes_df["class_name"], classes_df["annotations"], color="purple")
     plt.title("Frequency of Each Class")
     plt.ylabel("Frequency")
@@ -115,4 +115,47 @@ def plot_class_frequencies(df: pd.DataFrame) -> None:
         yval = bar.get_height()
         plt.text(bar.get_x() + bar.get_width() / 2.5, yval, int(yval), va="bottom")
 
+    plt.show()
+
+
+def plot_class_frequencies_split(df: pd.DataFrame, classes: list[str]) -> None:
+    classes_df = (
+        df[["class_name", "annotations", "split"]]
+        .groupby(["class_name", "split"])
+        .size()
+    )
+    fig, ax = plt.subplots(layout="constrained")
+    splits = ["train", "test", "val"]
+    x = np.arange(len(classes))
+    width = 0.25
+    multiplier = 0
+
+    for split in splits:
+        vals = []
+        for cls in classes:
+            vals.append(classes_df[cls][split])
+        offset = width * multiplier
+        rects = ax.bar(x + offset, vals, width, label=split)
+        ax.bar_label(rects, padding=3)
+        multiplier += 1
+    ax.set_xticks(x + width, classes)
+    ax.set_title("Number of instances per class")
+    ax.legend()
+    plt.show()
+
+
+def plot_instances(df: pd.DataFrame) -> None:
+    df_filtered = (
+        df[["url", "split"]]
+        .pivot_table(index="url", columns=["split"], aggfunc=lambda l: int(len(l)))
+        .reset_index()
+        .melt("url")
+    )
+    df_filtered = df_filtered[~df_filtered["value"].isna()]
+    plt.figure(figsize=(10, 4))
+    plt.hist(df_filtered["value"], bins=20)
+
+    plt.xlabel("Number of instances")
+    plt.ylabel("Count")
+    plt.title("Number of instances per image")
     plt.show()
