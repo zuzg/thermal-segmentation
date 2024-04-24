@@ -7,6 +7,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+COLORS = {
+    "Person": (155, 165, 0),
+    "Car": (0, 128, 0),
+    "Bicycle": (160, 32, 255),
+    "OtherVehicle": (32, 178, 170),
+    "DontCare": (255, 0, 0),
+}
+
 
 def yolo2bbox(bboxes: list[int]) -> tuple[int]:
     """
@@ -159,3 +167,89 @@ def plot_instances(df: pd.DataFrame) -> None:
     plt.ylabel("Count")
     plt.title("Number of instances per image")
     plt.show()
+
+
+def plot_oriented_annotations(
+    image: np.ndarray, annotations: dict, show: bool = False
+) -> np.ndarray:
+    """
+    Plot oriented bounding boxes on the image.
+
+    :param image: Image to plot the bounding boxes on.
+    :param annotations: Annotations for the image.
+    :param show: Whether to show the image.
+    :return: Image with bounding boxes.
+    """
+
+    lw = max(round(sum(image.shape) / 2 * 0.003), 2)
+    tf = max(lw - 1, 1)
+
+    for image_ann in annotations["robbox"]:
+
+        cx, cy = (
+            image_ann["cx"],
+            image_ann["cy"],
+        )
+        w, h, angle_rad = image_ann["w"], image_ann["h"], image_ann["angle"]
+        category = image_ann["category"]
+        color = COLORS[category]
+        half_w = w / 2
+        half_h = h / 2
+
+        corners = [
+            (
+                cx + (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
+                cy + (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
+            ),
+            (
+                cx + (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
+                cy + (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
+            ),
+            (
+                cx - (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
+                cy - (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
+            ),
+            (
+                cx - (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
+                cy - (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
+            ),
+        ]
+
+        xmin, xmax = min([corner[0] for corner in corners]), max(
+            [corner[0] for corner in corners]
+        )
+        ymin, ymax = min([corner[1] for corner in corners]), max(
+            [corner[1] for corner in corners]
+        )
+        p1, p2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
+
+        corners = [(int(x), int(y)) for x, y in corners]
+        cv2.polylines(
+            image,
+            [np.array(corners, dtype=np.int32)],
+            isClosed=True,
+            color=color,
+            thickness=2,
+        )
+
+        w, h = cv2.getTextSize(category, 0, fontScale=lw / 3, thickness=tf)[0]
+        outside = p1[1] - h >= 3
+        p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
+        cv2.rectangle(image, p1, p2, color=color, thickness=-1, lineType=cv2.LINE_AA)
+        cv2.putText(
+            image,
+            category,
+            (p1[0], p1[1] - 5 if outside else p1[1] + h + 2),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale=lw / 3.5,
+            color=(255, 255, 255),
+            thickness=tf,
+            lineType=cv2.LINE_AA,
+        )
+
+    if show:
+        plt.axis("off")
+        plt.tight_layout()
+        plt.imshow(image)
+        plt.show()
+    return image
