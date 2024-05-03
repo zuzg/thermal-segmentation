@@ -1,7 +1,11 @@
+import math
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pandas as pd
+
+from src.utils.process_image import add_altitude_rotation_channel
 
 
 def read_txt(txt_url: str) -> np.ndarray:
@@ -29,3 +33,67 @@ def read_yolo_dataset(data_dir: str, classes: list[str]) -> pd.DataFrame:
     df["class_name"] = df["class_id"].apply(lambda x: classes[int(x)])
     df["split"] = df.apply(lambda x: Path(x["url"]).parent.name, axis=1)
     return df
+
+
+def annotations_to_yolo(ann_dir: Path, annotations: dict, class_dict: dict) -> None:
+    ann_dir.mkdir(parents=True, exist_ok=True)
+    for image in annotations.values():
+        w_img = image["size"]["width"]
+        h_img = image["size"]["height"]
+        filename = image["picname"].split("\\")[-1].split(".")[0]
+        filepath = ann_dir / f"{filename}.txt"
+        with filepath.open("a") as f:
+            for image_ann in image["robbox"]:
+                cx, cy = (
+                    image_ann["cx"],
+                    image_ann["cy"],
+                )
+                w, h, angle_rad = image_ann["w"], image_ann["h"], image_ann["angle"]
+                category = image_ann["category"]
+                class_id = class_dict[category]
+                half_w = w / 2
+                half_h = h / 2
+
+                corners = [
+                    (
+                        cx
+                        + (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
+                        cy
+                        + (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
+                    ),
+                    (
+                        cx
+                        + (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
+                        cy
+                        + (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
+                    ),
+                    (
+                        cx
+                        - (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
+                        cy
+                        - (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
+                    ),
+                    (
+                        cx
+                        - (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
+                        cy
+                        - (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
+                    ),
+                ]
+                corners = [[int(x) / w_img, int(y) / h_img] for x, y in corners]
+                flat_corners = [x for xs in corners for x in xs]
+                object_str = f"{class_id}, {*flat_corners,}\n"
+                object_str = object_str.replace("(", "").replace(")", "")
+                f.write(object_str)
+
+
+def save_alt_rot_images(img_dir: Path, image_names: dict, images_path: str) -> None:
+    img_dir.mkdir(parents=True, exist_ok=True)
+    for img_set in image_names.keys():
+        set_dir = img_dir / img_set
+        set_dir.mkdir(parents=True, exist_ok=True)
+        for img_name in image_names[img_set]:
+            image = cv2.imread(f"{images_path}/{img_name}.jpg")
+            image_alt_rot = add_altitude_rotation_channel(image, img_name)
+            filepath = set_dir / f"{img_name}.jpg"
+            cv2.imwrite(str(filepath), image_alt_rot)
