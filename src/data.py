@@ -35,58 +35,6 @@ def read_yolo_dataset(data_dir: str, classes: list[str]) -> pd.DataFrame:
     return df
 
 
-def annotations_to_yolo_old(ann_dir: Path, annotations: dict, class_dict: dict) -> None:
-    ann_dir.mkdir(parents=True, exist_ok=True)
-    for image in annotations.values():
-        w_img = image["size"]["width"]
-        h_img = image["size"]["height"]
-        filename = image["picname"].split("\\")[-1].split(".")[0]
-        filepath = ann_dir / f"{filename}.txt"
-        with filepath.open("a") as f:
-            for image_ann in image["robbox"]:
-                cx, cy = (
-                    image_ann["cx"],
-                    image_ann["cy"],
-                )
-                w, h, angle_rad = image_ann["w"], image_ann["h"], image_ann["angle"]
-                category = image_ann["category"]
-                class_id = class_dict[category]
-                half_w = w / 2
-                half_h = h / 2
-
-                corners = [
-                    (
-                        cx
-                        + (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
-                        cy
-                        + (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
-                    ),
-                    (
-                        cx
-                        + (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
-                        cy
-                        + (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
-                    ),
-                    (
-                        cx
-                        - (math.cos(angle_rad) * half_w + math.sin(angle_rad) * half_h),
-                        cy
-                        - (math.sin(angle_rad) * half_w - math.cos(angle_rad) * half_h),
-                    ),
-                    (
-                        cx
-                        - (math.cos(angle_rad) * half_w - math.sin(angle_rad) * half_h),
-                        cy
-                        - (math.sin(angle_rad) * half_w + math.cos(angle_rad) * half_h),
-                    ),
-                ]
-                corners = [[int(x) / w_img, int(y) / h_img] for x, y in corners]
-                flat_corners = [x for xs in corners for x in xs]
-                object_str = f"{class_id}, {*flat_corners,}\n"
-                object_str = object_str.replace("(", "").replace(")", "")
-                f.write(object_str)
-
-
 def annotations_to_yolo(img_name: str, filepath: Path, annotations: dict, class_dict: dict) -> None:
     image = annotations[img_name]
     w_img = image["size"]["width"]
