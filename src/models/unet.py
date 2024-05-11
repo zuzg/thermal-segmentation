@@ -2,7 +2,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-# based on https://github.com/bigmb/Unet-Segmentation-Pytorch-Nest-of-Unets 
+# based on https://github.com/bigmb/Unet-Segmentation-Pytorch-Nest-of-Unets
+
 
 class conv_block(nn.Module):
     """
@@ -74,13 +75,24 @@ class UNet(nn.Module):
     UNet: https://arxiv.org/abs/1505.04597
     """
 
-    def __init__(self, in_ch=1, out_ch=1, img_size=512):
+    def __init__(
+        self,
+        in_ch: int = 3,
+        out_ch: int = 1, # out_ch == no. of classes
+        img_size: int = 512,
+        alt_rot_embedding: bool = False,
+    ):
         super(UNet, self).__init__()
 
         n1 = 64
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]
+        up_conv5_block = filters[4]
 
-        self.aa_encoding = aa_embedding(in_ch, img_size)
+        self.alt_rot_embedding = alt_rot_embedding
+        if self.alt_rot_embedding:
+            in_ch = 1
+            self.aa_encoding = aa_embedding(in_ch, img_size)
+            up_conv5_block += 2  # add channels for altitude and angle
 
         self.Maxpool1 = nn.MaxPool2d(kernel_size=2, stride=2)
         self.Maxpool2 = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -94,7 +106,7 @@ class UNet(nn.Module):
         self.Conv5 = conv_block(filters[3], filters[4])  # 512, 1024
 
         self.Up5 = up_conv(filters[4], filters[3])  # 1024, 512
-        self.Up_conv5 = conv_block(filters[4] + 2, filters[3])
+        self.Up_conv5 = conv_block(up_conv5_block, filters[3])
 
         self.Up4 = up_conv(filters[3], filters[2])  # 512, 256
         self.Up_conv4 = conv_block(filters[3], filters[2])
@@ -105,26 +117,25 @@ class UNet(nn.Module):
         self.Up2 = up_conv(filters[1], filters[0])  # 128, 64
         self.Up_conv2 = conv_block(filters[1], filters[0])
 
-        self.Conv = nn.Conv2d(
-            filters[0], out_ch, kernel_size=1, stride=1, padding=0
-        )  # 64, out_ch
+        self.OutConv = nn.Conv2d(filters[0], out_ch, kernel_size=1)  # 64, out_ch
 
         # TODO: add sigmoid
         # self.active = torch.nn.Sigmoid()
 
     def forward(self, x):
 
-        # take the information about the altitude and angle
-        altitude = x[:, 1, 0, 0, np.newaxis]
-        angle = x[:, 2, 0, 0, np.newaxis]
-        # print(altitude.shape, angle.shape)
-        altitude = self.aa_encoding(altitude)
-        angle = self.aa_encoding(angle)
-        # print(altitude.shape, angle.shape)
-        # print(altitude, angle)
+        if self.alt_rot_embedding:
+            # take the information about the altitude and angle
+            altitude = x[:, 1, 0, 0, np.newaxis]
+            angle = x[:, 2, 0, 0, np.newaxis]
+            # print(altitude.shape, angle.shape)
+            altitude = self.aa_encoding(altitude)
+            angle = self.aa_encoding(angle)
+            # print(altitude.shape, angle.shape)
+            # print(altitude, angle)
 
-        # take only the first channel
-        x = x[:, np.newaxis, 0]
+            # take only the first channel
+            x = x[:, np.newaxis, 0]
 
         e1 = self.Conv1(x)
 
@@ -142,10 +153,14 @@ class UNet(nn.Module):
 
         d5 = self.Up5(e5)
         print(e4.shape, d5.shape)
-        # fuse as learnable features in latent space
-        d5 = torch.cat((e4, d5, altitude, angle), dim=1)
-        print(d5.shape)
 
+        if self.alt_rot_embedding:
+            # fuse as learnable features in latent space
+            d5 = torch.cat((e4, d5, altitude, angle), dim=1)
+        else:
+            d5 = torch.cat((e4, d5), dim=1)
+
+        print(d5.shape)
         d5 = self.Up_conv5(d5)
 
         d4 = self.Up4(d5)
@@ -160,6 +175,6 @@ class UNet(nn.Module):
         d2 = torch.cat((e1, d2), dim=1)
         d2 = self.Up_conv2(d2)
 
-        out = self.Conv(d2)
+        out = self.OutConv(d2)
         # d1 = self.active(out)
         return out
