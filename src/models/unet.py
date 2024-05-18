@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 # based on https://github.com/bigmb/Unet-Segmentation-Pytorch-Nest-of-Unets
 
@@ -53,9 +54,9 @@ class aa_embedding(nn.Module):
     """
 
     # TODO: verify
-    def __init__(self, in_ch, img_size):
+    def __init__(self, in_ch: int, img_size: tuple[int]):
         super(aa_embedding, self).__init__()
-        self.img_size = img_size // 8
+        self.img_size = img_size[0] // 8  # image width
         self.linear1 = nn.Linear(in_ch, 64)  # 1 x 225
         self.relu = nn.ReLU()  # 1 x 225
         self.linear2 = nn.Linear(64, 1)  # 1 x 510
@@ -78,8 +79,8 @@ class UNet(nn.Module):
     def __init__(
         self,
         in_ch: int = 3,
-        out_ch: int = 1, # out_ch == no. of classes
-        img_size: int = 512,
+        out_ch: int = 1,  # out_ch == no. of classes
+        img_size: tuple[int] = (512, 640),
         alt_rot_embedding: bool = False,
     ):
         super(UNet, self).__init__()
@@ -152,7 +153,7 @@ class UNet(nn.Module):
         e5 = self.Conv5(e5)
 
         d5 = self.Up5(e5)
-        print(e4.shape, d5.shape)
+        # print(e4.shape, d5.shape)
 
         if self.alt_rot_embedding:
             # fuse as learnable features in latent space
@@ -160,7 +161,7 @@ class UNet(nn.Module):
         else:
             d5 = torch.cat((e4, d5), dim=1)
 
-        print(d5.shape)
+        # print(d5.shape)
         d5 = self.Up_conv5(d5)
 
         d4 = self.Up4(d5)
@@ -176,5 +177,5 @@ class UNet(nn.Module):
         d2 = self.Up_conv2(d2)
 
         out = self.OutConv(d2)
-        # d1 = self.active(out)
+        out = F.softmax(out, dim=1)
         return out

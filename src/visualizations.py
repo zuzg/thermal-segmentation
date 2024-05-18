@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from src.utils.process_image import mask_oriented_annotations
+
 COLORS = {
     "Person": (155, 165, 0),
     "Car": (0, 128, 0),
@@ -281,6 +283,45 @@ def plot_rotated_images(
         img = cv2.imread(img_path)
 
         img_with_annotations = plot_oriented_annotations(img, annotations[image_name])
+        axes[idx].imshow(cv2.cvtColor(img_with_annotations, cv2.COLOR_BGR2RGB))
+        axes[idx].set_axis_off()
+
+    for ax in axes[len(images_list) :]:
+        ax.axis("off")
+
+    plt.tight_layout()
+    plt.show()
+
+
+def mask_rotated_images(
+    images_path: str,
+    images_list: list[str],
+    annotations: dict,
+    colored_masks: bool = False,
+    rows: int = None,
+    cols: int = None,
+    figsize: tuple[int, int] = (15, 20),
+) -> None:
+    if rows is None:
+        rows = len(images_list)
+        cols = 1
+    elif cols is None:
+        cols = len(images_list)
+        rows = 1
+
+    fig, axes = plt.subplots(rows, cols, figsize=figsize)
+    axes = axes.flatten()
+
+    if len(images_list) > rows * cols:
+        raise ValueError("Number of images to display exceeds the number of subplots")
+
+    for idx, image_name in enumerate(images_list):
+        img_path = f"{images_path}/{image_name}.jpg"
+        img = cv2.imread(img_path)
+
+        img_with_annotations = mask_oriented_annotations(
+            img, annotations[image_name], colored_masks=colored_masks
+        )
         axes[idx].imshow(cv2.cvtColor(img_with_annotations, cv2.COLOR_BGR2RGB))
         axes[idx].set_axis_off()
 
