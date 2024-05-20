@@ -6,6 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import torch
 
 from src.utils.process_image import mask_oriented_annotations
 
@@ -329,4 +330,35 @@ def mask_rotated_images(
         ax.axis("off")
 
     plt.tight_layout()
+    plt.show()
+
+
+def plot_model_input_output(img_path: str, output: torch.Tensor) -> None:
+
+    img = cv2.imread(str(img_path))
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    fig, ax = plt.subplots(1, 2, figsize=(15, 8))
+    ax[0].imshow(img_rgb)
+    ax[0].set_title("Input image")
+    ax[0].axis("off")
+
+    masked_img = np.argmax(output.detach().numpy(), axis=1).squeeze(0)
+    print(masked_img.shape)
+
+    colors = np.array(
+        [
+            (0, 0, 0),  # Background
+            (155, 165, 0),  # Person
+            (0, 128, 0),  # Car
+            (160, 32, 255),  # Bicycle
+            (32, 178, 170),  # OtherVehicle
+            (255, 0, 0),  # DontCare
+        ]
+    )
+
+    color_mask = colors[masked_img]
+
+    ax[1].imshow(color_mask)
+    ax[1].set_title("Segmentation output")
+    ax[1].axis("off")
     plt.show()
