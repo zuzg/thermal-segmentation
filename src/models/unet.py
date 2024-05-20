@@ -80,12 +80,12 @@ class UNet(nn.Module):
         self,
         in_ch: int = 3,
         out_ch: int = 1,  # out_ch == no. of classes
+        n1: int = 64,     # starting number of filters
         img_size: tuple[int] = (512, 640),
         alt_rot_embedding: bool = False,
     ):
         super(UNet, self).__init__()
 
-        n1 = 64
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]
         up_conv5_block = filters[4]
 
