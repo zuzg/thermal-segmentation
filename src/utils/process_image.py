@@ -32,6 +32,26 @@ def add_altitude_rotation_channel(image: np.ndarray, image_name: str) -> np.ndar
     )
 
 
+def add_altitude_channel(image: np.ndarray, image_name: str) -> np.ndarray:
+    h, w = image.shape[:2]
+    altitude, angle = image_name.split("_")[1:3]
+    altitude_channel = np.full((h, w, 1), int(altitude))
+    extra_channel = np.full((h, w, 1), 0)
+    return np.concatenate(
+        (image[:, :, 0][:, :, np.newaxis], altitude_channel, extra_channel), axis=-1
+    )
+
+
+def add_rotation_channel(image: np.ndarray, image_name: str) -> np.ndarray:
+    h, w = image.shape[:2]
+    altitude, angle = image_name.split("_")[1:3]
+    angle_channel = np.full((h, w, 1), int(angle))
+    extra_channel = np.full((h, w, 1), 0)
+    return np.concatenate(
+        (image[:, :, 0][:, :, np.newaxis], angle_channel, extra_channel), axis=-1
+    )
+
+
 def mask_oriented_annotations(
     image: np.ndarray, annotations: dict, colored_masks: bool = False
 ) -> np.ndarray:

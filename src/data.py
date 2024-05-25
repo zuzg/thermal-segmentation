@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-from src.utils.process_image import add_altitude_rotation_channel
+from src.utils.process_image import add_altitude_rotation_channel, add_altitude_channel, add_rotation_channel
 
 
 def read_txt(txt_url: str) -> np.ndarray:
@@ -91,18 +91,24 @@ def save_alt_rot_images_annotations(
     images_path: str,
     annotations: dict,
     class_dict: dict,
+    transform: str,
 ) -> None:
-    img_dir.mkdir(parents=True)
-    ann_dir.mkdir(parents=True)
+    img_dir.mkdir(parents=True, exist_ok=True)
+    ann_dir.mkdir(parents=True, exist_ok=True)
     for img_set in image_names.keys():
         set_dir = img_dir / img_set
-        set_dir.mkdir(parents=True)
+        set_dir.mkdir(parents=True, exist_ok=True)
         set_dir_ann = ann_dir / img_set
-        set_dir_ann.mkdir(parents=True)
+        set_dir_ann.mkdir(parents=True, exist_ok=True)
         for img_name in image_names[img_set]:
             image = cv2.imread(f"{images_path}/{img_name}.jpg")
-            image_alt_rot = add_altitude_rotation_channel(image, img_name)
+            if transform == "rotation":
+                image = add_rotation_channel(image, img_name)
+            elif transform == "altitude":
+                image = add_altitude_channel(image, img_name)
+            elif transform == "both":
+                image = add_altitude_rotation_channel(image, img_name)
             filepath = set_dir / f"{img_name}.jpg"
-            cv2.imwrite(str(filepath), image_alt_rot)
+            cv2.imwrite(str(filepath), image)
             filepath_ann = set_dir_ann / f"{img_name}.txt"
             annotations_to_yolo(img_name, filepath_ann, annotations, class_dict)
